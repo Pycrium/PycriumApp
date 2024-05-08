@@ -34,18 +34,14 @@ def signup_window():
     confirm_password_entry.pack()
     error_label = tk.Label(root, text="")
     error_label.pack()
-    def exist_username():
-        server.sendall(pickle.dumps({'function':'exist_username','args':username_entry.get()}))
-        response = pickle.loads(server.recv(1024))
-        if response:
-            signup_button['state'] = tk.NORMAL
-        else:
-            signup_button['state'] = tk.DISABLED
+    def exist_username(username):
+        server.sendall(pickle.dumps({'function':'exist_username','args':username}))
+        return pickle.loads(server.recv(1024)) 
     def signup():
         username = username_entry.get()
         password = password_entry.get()
         confirm_password = confirm_password_entry.get()
-        if password == confirm_password:
+        if exist_username(username) and password == confirm_password:
             server.sendall(pickle.dumps({'function':'add_user','args':(username,password)}))
             response = pickle.loads(server.recv(1024))
             if response:
