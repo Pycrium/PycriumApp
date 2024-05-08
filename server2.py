@@ -4,6 +4,7 @@ import threading
 
 HOST = socket.gethostbyname(socket.gethostname())
 PORT = 1000
+online = {}
 
 try:
     with open('Pycrium\\user.dat', 'rb') as file:
@@ -17,7 +18,7 @@ def save_cache(object):
         pickle.dump(object, file)
 
 class Pycrium:
-    def __init__(self):
+    def __init__(self, client, address):
         print('Hi')
 
 class Lobby:
@@ -52,7 +53,9 @@ class Lobby:
         try:
             if user[args[0]] == args[1]:
                 client.sendall(pickle.dumps(True))
+                online[address] = args[0]
                 print(user[args[0]], 'login success')
+                Pycrium(client,address)
             else: raise Exception()
         except:
             client.sendall(pickle.dumps(False))
