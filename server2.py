@@ -49,10 +49,12 @@ class Lobby:
         except:pass
 
     def login_request(self, client, address, args):
-        if user[args[0]] == args[1]:
-            client.sendall(pickle.dumps(True))
-            print(user[args[0]], 'Joined')
-        else:
+        try:
+            if user[args[0]] == args[1]:
+                client.sendall(pickle.dumps(True))
+                print(user[args[0]], 'login success')
+            else: raise Exception()
+        except:
             client.sendall(pickle.dumps(False))
             self.login(client, address)
 
