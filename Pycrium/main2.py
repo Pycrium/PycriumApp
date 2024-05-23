@@ -87,6 +87,14 @@ class Login:
             password_error_label['text'] = ""
             return True
 
+        def validate_confirm_password(password):
+            if password != password_entry.get():
+                confirm_password_error_label['text'] = "passwords don't match"
+                return False
+            else:
+                confirm_password_error_label['text'] = ""
+                return True
+
         def exist_username(username):
             server.sendall(pickle.dumps({'function': 'exist_username', 'args': username}))
             return pickle.loads(server.recv(1024))
@@ -122,33 +130,26 @@ class Login:
         confirm_password_entry.config(insertofftime=1000000)
         confirm_password_entry.bind('<FocusIn>', lambda event: on_entry_click(event, "Confirm Password", confirm_password_entry))
         confirm_password_entry.bind('<FocusOut>', lambda event: on_focus_out(event, "Confirm Password", confirm_password_entry))
-        confirm_password_entry.bind('<KeyRelease>', lambda event: validate_password(confirm_password_entry.get()))
+        confirm_password_entry.bind('<KeyRelease>', lambda event: validate_confirm_password(confirm_password_entry.get()))
         confirm_password_entry.bind('<KeyPress>', lambda event: "break" if event.char == " " else None)
         confirm_password_entry.place(x=415, y=612)
 
         username_error_label = tk.Label(root,text='', font=('Helvetica', 10), fg='#CCCCCC', bg="#2D3E45",borderwidth=0, highlightthickness=0,anchor='e',width=38)
         username_error_label.place(x=650, y=471)
 
-        password_error_label = tk.Label(root,text='', font=('Helvetica', 10), fg='#CCCCCC', bg="#2D3E45", borderwidth=0, highlightthickness=0,anchor='e',width=38)
-        password_error_label.place(x=415, y=581)
+        password_error_label = tk.Label(root,text='', font=('Helvetica', 10), fg='#CCCCCC', bg="#2D3E45", borderwidth=0, highlightthickness=0,anchor='e',width=40)
+        password_error_label.place(x=640,y=548)
 
         confirm_password_error_label = tk.Label(root,text='', font=('Helvetica', 10), fg='#CCCCCC', bg="#2D3E45",borderwidth=0, highlightthickness=0,anchor='e',width=38)
-        confirm_password_error_label.place(x=415, y=642)
+        confirm_password_error_label.place(x=650, y=603)
 
         def signup():
             username = username_entry.get()
             password = password_entry.get()
             confirm_password = confirm_password_entry.get()
 
-            if not validate_username(username):
-                return
-
-            if not validate_password(password):
-                return
-
             if password != confirm_password:
                 confirm_password_error_label['text'] = "Passwords do not match."
-                return
             else:
                 confirm_password_error_label['text'] = ""
 
@@ -216,9 +217,9 @@ class Login:
         password_entry.bind('<KeyPress>', lambda event:"break" if event.char == " " else None)
         password_entry.place(x=415, y=553)
     
-        def right_click(event):
-            print(event.x,event.y)
-        background_label.bind('<Motion>',right_click)
+        # def right_click(event):
+        #     print(event.x,event.y)
+        # background_label.bind('<Motion>',right_click)
 
         def login():
             username = username_entry.get()

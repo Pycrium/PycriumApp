@@ -9,5 +9,5 @@ def check_credentials():
 		credentials = pickle.load(file)	
 		print(credentials)
 		
-reload_credentials("Bhargav","Aayush")
+check_credentials()
 
