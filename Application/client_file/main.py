@@ -3,12 +3,14 @@ import threading
 import pickle
 import os
 import tkinter as tk
+from tkinter import simpledialog
 from tkinter import messagebox, filedialog, ttk
 from tkinterdnd2 import DND_FILES, TkinterDnD
 import re
 import subprocess
 import sys
 import shutil
+from PIL import Image, ImageTk, ImageDraw, ImageOps
 
 # Directory to store user data locally
 LOCAL_DATA_DIR = "local_data"
@@ -81,6 +83,48 @@ def upload_game(username, game_name, game_dir, game_main_file, game_icon):
     client.close()
     return response.get("status") == "success"
 
+# Reupload game to server
+def reupload_game(username, game_name, game_dir, game_main_file, game_icon):
+    client = connect_to_server()
+
+    # Copy the entire game folder to the shared directory
+    dest_dir = os.path.join(GAMES_DIR, os.path.basename(game_dir))
+    shutil.copytree(game_dir, dest_dir, dirs_exist_ok=True)
+
+    # Only send the main file path relative to the shared directory
+    relative_main_file = os.path.relpath(game_main_file, GAMES_DIR)
+
+    # Send the reupload request to the server
+    request = {
+        "action": "reupload",
+        "username": username,
+        "game_name": game_name,
+        "game_main_file": relative_main_file,
+        "game_icon": game_icon
+    }
+    client.send(pickle.dumps(request))
+    response = pickle.loads(client.recv(4096))
+    client.close()
+    return response.get("status") == "success"
+
+# Delete game from server
+def delete_game(username, game_name):
+    client = connect_to_server()
+    request = {"action": "delete", "username": username, "game_name": game_name}
+    client.send(pickle.dumps(request))
+    response = pickle.loads(client.recv(4096))
+    client.close()
+    return response.get("status") == "success"
+
+# Rename game on server
+def rename_game(username, old_game_name, new_game_name):
+    client = connect_to_server()
+    request = {"action": "rename", "username": username, "old_game_name": old_game_name, "new_game_name": new_game_name}
+    client.send(pickle.dumps(request))
+    response = pickle.loads(client.recv(4096))
+    client.close()
+    return response.get("status") == "success"
+
 # Retrieve list of games from server
 def get_games():
     client = connect_to_server()
@@ -103,6 +147,29 @@ def get_games():
     except Exception as e:
         print(f"Error decoding server response: {e}")
         return []
+
+# Retrieve the currently playing count for a game from server
+def get_playing_count(game_name):
+    client = connect_to_server()
+    request = {"action": "get_playing_count", "game_name": game_name}
+    client.send(pickle.dumps(request))
+    response = client.recv(4096)
+    client.close()
+
+    if not response:
+        print("No data received from server")
+        return 0
+
+    try:
+        playing_count = pickle.loads(response)
+        if isinstance(playing_count, int):
+            return playing_count
+        else:
+            print("Invalid response format from server")
+            return 0
+    except Exception as e:
+        print(f"Error decoding server response: {e}")
+        return 0
 
 # GUI Application
 class Application(TkinterDnD.Tk):
@@ -199,97 +266,146 @@ class Application(TkinterDnD.Tk):
         self.tabs.add(self.games_tab, text="Games")
         self.tabs.add(self.create_tab, text="Create")
         self.tabs.add(self.chat_tab, text="Chat")
-        self.tabs.add(self.settings_tab, text="Settings")
+        self.tabs.add(self.settings_tab,text="Settings")
 
-        self.show_games()
-        self.show_create()
+        self.show_games_tab()
+        self.show_create_tab()
+        self.show_chat_tab()
+        self.show_settings_tab()
 
-    def show_games(self):
+    def show_games_tab(self):
         for widget in self.games_tab.winfo_children():
             widget.destroy()
 
         games = get_games()
+        if not games:
+            tk.Label(self.games_tab, text="No games available").pack()
+            return
+
         for game in games:
-            game_frame = tk.Frame(self.games_tab)
-            game_frame.pack(fill="x", pady=5)
+            frame = tk.Frame(self.games_tab)
+            frame.pack(fill="x", pady=5)
 
-            game_name = game.get("game_name")
-            author = game.get("username")
-            game_main_file = game.get("main_file")
+            game_icon_path = os.path.join(GAMES_DIR, game['icon']) if game['icon'] else "default_icon.png"
+            img = Image.open(game_icon_path)
+            img = img.resize((64, 64), Image.ANTIALIAS)
+            icon = ImageTk.PhotoImage(img)
+            tk.Label(frame, image=icon).pack(side="left", padx=5)
+            frame.image = icon
 
-            tk.Label(game_frame, text=f"{game_name} by {author}").pack(side="left")
-            tk.Button(game_frame, text="Play", command=lambda g=game_main_file: self.play_game(g)).pack(side="right")
+            game_info = tk.Frame(frame)
+            game_info.pack(side="left", fill="both", expand=True)
 
-    def play_game(self, game_main_file):
-        game_main_file_path = os.path.join(GAMES_DIR, game_main_file)
-        python_executable = sys.executable  # Get the path to the Python executable
-        subprocess.run([python_executable, game_main_file_path])
+            tk.Label(game_info, text=game['name'], font=("Helvetica", 14, "bold")).pack(anchor="w")
+            tk.Label(game_info, text=f"Uploaded by: {game['username']}").pack(anchor="w")
+            tk.Label(game_info, text=f"Playing: {get_playing_count(game['name'])}").pack(anchor="w")
 
-    def show_create(self):
+            btn_frame = tk.Frame(frame)
+            btn_frame.pack(side="right", padx=5)
+
+            tk.Button(btn_frame, text="Play", command=lambda g=game: self.play_game(g)).pack(side="left", padx=2)
+            if game['username'] == self.local_data['username']:
+                tk.Button(btn_frame, text="Reupload", command=lambda g=game: self.reupload_game(g)).pack(side="left", padx=2)
+                tk.Button(btn_frame, text="Delete", command=lambda g=game: self.delete_game(g)).pack(side="left", padx=2)
+                tk.Button(btn_frame, text="Rename", command=lambda g=game: self.rename_game(g)).pack(side="left", padx=2)
+
+    def play_game(self, game):
+        game_main_file = os.path.join(GAMES_DIR, game['main_file'])
+        if sys.platform == "win32":
+            os.startfile(game_main_file)
+        else:
+            subprocess.call(['open', game_main_file])
+
+    def reupload_game(self, game):
+        game_name = game['name']
+        game_dir = filedialog.askdirectory(title="Select Game Directory")
+        if not game_dir:
+            return
+        game_main_file = filedialog.askopenfilename(title="Select Main Game File", initialdir=game_dir)
+        if not game_main_file:
+            return
+        game_icon = filedialog.askopenfilename(title="Select Game Icon", initialdir=game_dir)
+        if reupload_game(self.local_data['username'], game_name, game_dir, game_main_file, game_icon):
+            messagebox.showinfo("Success", "Game reuploaded successfully")
+            self.show_games_tab()
+        else:
+            messagebox.showerror("Error", "Failed to reupload game")
+
+    def delete_game(self, game):
+        if delete_game(self.local_data['username'], game['name']):
+            messagebox.showinfo("Success", "Game deleted successfully")
+            self.show_games_tab()
+        else:
+            messagebox.showerror("Error", "Failed to delete game")
+
+    def rename_game(self, game):
+        new_name = simpledialog.askstring("Rename Game", "Enter new game name:")
+        if not new_name:
+            return
+        if rename_game(self.local_data['username'], game['name'], new_name):
+            messagebox.showinfo("Success", "Game renamed successfully")
+            self.show_games_tab()
+        else:
+            messagebox.showerror("Error", "Failed to rename game")
+
+    def show_create_tab(self):
         for widget in self.create_tab.winfo_children():
             widget.destroy()
 
-        tk.Button(self.create_tab, text="Upload Game", command=self.upload_game_window).pack(pady=10)
+        self.create_game_name = tk.StringVar()
+        self.create_game_main_file = tk.StringVar()
+        self.create_game_icon = tk.StringVar()
 
-    def upload_game_window(self):
-        upload_window = tk.Toplevel(self)
-        upload_window.title("Upload Game")
-        upload_window.geometry("400x300")
+        tk.Label(self.create_tab, text="Game Name").pack()
+        tk.Entry(self.create_tab, textvariable=self.create_game_name).pack()
 
-        self.game_name = tk.StringVar()
-        self.game_main_file = tk.StringVar()
-        self.game_icon = tk.StringVar()
+        tk.Label(self.create_tab, text="Game Directory").pack()
+        self.create_game_dir = tk.Button(self.create_tab, text="Select Directory", command=self.select_game_dir)
+        self.create_game_dir.pack()
 
-        tk.Label(upload_window, text="Game Name").pack()
-        tk.Entry(upload_window, textvariable=self.game_name).pack()
+        tk.Label(self.create_tab, text="Main Game File").pack()
+        self.create_game_main_file_btn = tk.Button(self.create_tab, text="Select Main File", command=self.select_main_file)
+        self.create_game_main_file_btn.pack()
 
-        tk.Label(upload_window, text="Main Game File").pack()
-        self.main_file_entry = tk.Entry(upload_window, textvariable=self.game_main_file)
-        self.main_file_entry.pack()
-        tk.Button(upload_window, text="Select Main File", command=self.select_main_file).pack()
+        tk.Label(self.create_tab, text="Game Icon").pack()
+        self.create_game_icon_btn = tk.Button(self.create_tab, text="Select Icon", command=self.select_icon_file)
+        self.create_game_icon_btn.pack()
 
-        tk.Label(upload_window, text="Game Icon (optional)").pack()
-        tk.Entry(upload_window, textvariable=self.game_icon).pack()
+        tk.Button(self.create_tab, text="Upload Game", command=self.upload_game).pack()
 
-        self.drop_target = tk.Label(upload_window, text="Drag and drop your game folder here", bg="lightgray")
-        self.drop_target.pack(fill="both", expand=True, pady=10)
-        self.drop_target.drop_target_register(DND_FILES)
-        self.drop_target.dnd_bind('<<Drop>>', lambda event: self.select_game_folder(upload_window, event.data))
+    def select_game_dir(self):
+        self.create_game_dir = filedialog.askdirectory(title="Select Game Directory")
 
     def select_main_file(self):
-        file_path = filedialog.askopenfilename(filetypes=[("Python Files", "*.py")])
-        if file_path:
-            self.game_main_file.set(file_path)
+        self.create_game_main_file.set(filedialog.askopenfilename(title="Select Main Game File", initialdir=self.create_game_dir))
 
-    def select_game_folder(self, upload_window, folder_path):
-        # Clean the folder path if necessary
-        folder_path = folder_path.strip('{}')
-        
-        if os.path.isdir(folder_path):
-            self.game_dir = folder_path
-            self.drop_target.config(text=f"Selected folder: {os.path.basename(folder_path)}")
-
-            # Add Upload button if not already added
-            if not hasattr(self, 'upload_button'):
-                self.upload_button = tk.Button(upload_window, text="Upload", command=self.upload_game)
-                self.upload_button.pack(pady=10)
-        else:
-            messagebox.showerror("Invalid Folder", "Please select a valid folder")
+    def select_icon_file(self):
+        self.create_game_icon.set(filedialog.askopenfilename(title="Select Game Icon", initialdir=self.create_game_dir))
 
     def upload_game(self):
-        game_name = self.game_name.get()
-        game_main_file = self.game_main_file.get()
-        game_icon = self.game_icon.get()
+        game_name = self.create_game_name.get()
+        game_main_file = self.create_game_main_file.get()
+        game_icon = self.create_game_icon.get()
 
-        if not game_name or not game_main_file:
-            messagebox.showerror("Missing Information", "Please provide all required information")
+        if not game_name or not self.create_game_dir or not game_main_file:
+            messagebox.showerror("Error", "Please provide all details")
             return
 
-        if upload_game(self.local_data["username"], game_name, self.game_dir, game_main_file, game_icon):
-            messagebox.showinfo("Upload Success", "Game uploaded successfully")
-            self.show_games()
+        if upload_game(self.local_data['username'], game_name, self.create_game_dir, game_main_file, game_icon):
+            messagebox.showinfo("Success", "Game uploaded successfully")
+            self.show_games_tab()
         else:
-            messagebox.showerror("Upload Failed", "Failed to upload the game")
+            messagebox.showerror("Error", "Failed to upload game")
+
+    def show_chat_tab(self):
+        for widget in self.chat_tab.winfo_children():
+            widget.destroy()
+        tk.Label(self.chat_tab, text="Chat feature not implemented yet").pack()
+
+    def show_settings_tab(self):
+        for widget in self.settings_tab.winfo_children():
+            widget.destroy()
+        tk.Label(self.settings_tab, text="Settings feature not implemented yet").pack()
 
 if __name__ == "__main__":
     app = Application()
