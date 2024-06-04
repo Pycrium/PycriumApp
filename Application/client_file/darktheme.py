@@ -11,15 +11,12 @@ import shutil
 from PIL import Image, ImageTk
 from ttkthemes import ThemedTk
 
-# Directory to store user data locally
 LOCAL_DATA_DIR = "local_data"
 if not os.path.exists(LOCAL_DATA_DIR):
     os.makedirs(LOCAL_DATA_DIR)
 
-# Directory where games are stored on the shared server
 GAMES_DIR = r"D:\Aayush Paikaray\Storage"
 
-# Server address
 SERVER_ADDR = ("192.168.1.4", 9998)
 
 def load_local_data():
@@ -174,10 +171,9 @@ class Application(ThemedTk):
     def __init__(self):
         super().__init__(theme="equilux")
         self.title("Client Application")
-        self.state("zoomed")  # Maximize window
+        self.state("zoomed")
         self.local_data = load_local_data()
 
-        # Apply custom styles
         style = ttk.Style(self)
         style.configure("TLabel", foreground="white", background="#333333", font=("Arial", 14))
         style.configure("TButton", foreground="white", background="#444444", font=("Arial", 12))
@@ -362,40 +358,50 @@ class Application(ThemedTk):
         for widget in self.create_tab.winfo_children():
             widget.destroy()
 
-        tk.Label(self.create_tab, text="Create New Game", bg="#333333", fg="white", font=("Arial", 16, "bold")).pack(pady=10)
+        tk.Label(self.create_tab, text="Upload New Game", font=("Arial", 16), bg="#333333", fg="white").pack(pady=10)
 
-        self.game_name_entry = ttk.Entry(self.create_tab)
-        self.game_name_entry.pack(pady=5)
+        self.game_name_var = tk.StringVar()
+        tk.Label(self.create_tab, text="Game Name:", bg="#333333", fg="white").pack()
+        tk.Entry(self.create_tab, textvariable=self.game_name_var, bg="#555555", fg="white").pack(pady=5)
 
-        ttk.Button(self.create_tab, text="Select Directory", command=self.select_game_directory).pack(pady=5)
-        ttk.Button(self.create_tab, text="Select Main File", command=self.select_main_file).pack(pady=5)
-        ttk.Button(self.create_tab, text="Select Icon", command=self.select_game_icon).pack(pady=5)
-        ttk.Button(self.create_tab, text="Upload Game", command=self.upload_new_game).pack(pady=10)
+        self.game_dir_var = tk.StringVar()
+        ttk.Button(self.create_tab, text="Select Game Directory", command=self.select_game_directory).pack(pady=5)
+        tk.Label(self.create_tab, textvariable=self.game_dir_var, bg="#555555", fg="white").pack()
+
+        self.game_main_file_var = tk.StringVar()
+        ttk.Button(self.create_tab, text="Select Main Game File", command=self.select_main_game_file).pack(pady=5)
+        tk.Label(self.create_tab, textvariable=self.game_main_file_var, bg="#555555", fg="white").pack()
+
+        self.game_icon_var = tk.StringVar()
+        ttk.Button(self.create_tab, text="Select Game Icon", command=self.select_game_icon).pack(pady=5)
+        tk.Label(self.create_tab, textvariable=self.game_icon_var, bg="#555555", fg="white").pack()
+
+        ttk.Button(self.create_tab, text="Upload", command=self.upload_game).pack(pady=10)
 
     def select_game_directory(self):
         game_dir = filedialog.askdirectory(title="Select Game Directory")
         if game_dir:
-            self.game_dir = game_dir
+            self.game_dir_var.set(game_dir)
 
-    def select_main_file(self):
-        game_main_file = filedialog.askopenfilename(title="Select Main Game File", initialdir=self.game_dir)
+    def select_main_game_file(self):
+        game_main_file = filedialog.askopenfilename(title="Select Main Game File", initialdir=self.game_dir_var.get())
         if game_main_file:
-            self.game_main_file = game_main_file
+            self.game_main_file_var.set(game_main_file)
 
     def select_game_icon(self):
-        game_icon = filedialog.askopenfilename(title="Select Game Icon", initialdir=self.game_dir)
+        game_icon = filedialog.askopenfilename(title="Select Game Icon", initialdir=self.game_dir_var.get())
         if game_icon:
-            self.game_icon = game_icon
+            self.game_icon_var.set(game_icon)
 
-    def upload_new_game(self):
-        game_name = self.game_name_entry.get().strip()
-        if not game_name:
-            messagebox.showerror("Error", "Please enter a name for the game")
+    def upload_game(self):
+        game_name = self.game_name_var.get()
+        game_dir = self.game_dir_var.get()
+        game_main_file = self.game_main_file_var.get()
+        game_icon = self.game_icon_var.get()
+        if not (game_name and game_dir and game_main_file):
+            messagebox.showerror("Upload Failed", "Please fill in all required fields")
             return
-        if not hasattr(self, 'game_dir') or not hasattr(self, 'game_main_file') or not hasattr(self, 'game_icon'):
-            messagebox.showerror("Error", "Please select game directory, main file, and icon")
-            return
-        if upload_game(self.local_data['username'], game_name, self.game_dir, self.game_main_file, self.game_icon):
+        if upload_game(self.local_data['username'], game_name, game_dir, game_main_file, game_icon):
             messagebox.showinfo("Upload Successful", "Game uploaded successfully")
             self.show_games_tab()
         else:
@@ -405,20 +411,13 @@ class Application(ThemedTk):
         for widget in self.chat_tab.winfo_children():
             widget.destroy()
 
-        tk.Label(self.chat_tab, text="Chat", bg="#333333", fg="white", font=("Arial", 16, "bold")).pack(pady=10)
-        tk.Text(self.chat_tab, bg="#555555", fg="white", height=10, width=50).pack(pady=5)
+        ttk.Label(self.chat_tab, text="Chat coming soon", font=("Arial", 16), background="#333333", foreground="white").pack(pady=50)
 
     def show_settings_tab(self):
         for widget in self.settings_tab.winfo_children():
             widget.destroy()
 
-        tk.Label(self.settings_tab, text="Settings", bg="#333333", fg="white", font=("Arial", 16, "bold")).pack(pady=10)
-        ttk.Button(self.settings_tab, text="Logout", command=self.logout).pack(pady=10)
-
-    def logout(self):
-        os.remove(os.path.join(LOCAL_DATA_DIR, "user.dat"))
-        self.destroy()
-        Application()
+        ttk.Label(self.settings_tab, text="Settings coming soon", font=("Arial", 16), background="#333333", foreground="white").pack(pady=50)
 
 if __name__ == "__main__":
     app = Application()
