@@ -171,7 +171,7 @@ class Application(ThemedTk):
             widget.destroy()
 
         self.tabs = ttk.Notebook(self)
-        self.tabs.pack(expand=1, fill="both")
+        self.tabs.pack(expand=1,fill="both")
 
         self.games_tab = ttk.Frame(self.tabs)
         self.create_tab = ttk.Frame(self.tabs)
@@ -189,26 +189,15 @@ class Application(ThemedTk):
         self.show_settings_tab()
 
     def show_games_tab(self):
-    for widget in self.games_tab.winfo_children():
-        widget.destroy()
+        for widget in self.games_tab.winfo_children():
+            widget.destroy()
 
-    search_frame = ttk.Frame(self.games_tab)
-    search_frame.pack(fill="x", pady=5)
+        games = get_games()
+        if not games:
+            tk.Label(self.games_tab, text="No games available", bg=SECONDARY_COLOR, fg="white", font=("Arial", 14)).pack()
+            return
 
-    search_entry = ttk.Entry(search_frame)
-    search_entry.pack(side="left", padx=5)
-
-    search_button = ttk.Button(search_frame, text="Search", command=lambda: self.search_games(search_entry.get()))
-    search_button.pack(side="left", padx=5)
-
-    games = get_games()
-    if not games:
-        tk.Label(self.games_tab, text="No games available", bg=SECONDARY_COLOR, fg="white", font=("Arial", 14)).pack()
-        return
-
-    for game in games:
-        # Check if the search query matches the game name or username
-        if search_entry.get().lower() in game['name'].lower() or search_entry.get().lower() in game['username'].lower():
+        for game in games:
             frame = ttk.Frame(self.games_tab)
             frame.pack(fill="x", pady=5)
 
@@ -234,6 +223,7 @@ class Application(ThemedTk):
                 ttk.Button(btn_frame, text="Reupload", command=lambda g=game: self.reupload_game(g)).pack(side="left", padx=2)
                 ttk.Button(btn_frame, text="Delete", command=lambda g=game: self.delete_game(g)).pack(side="left", padx=2)
                 ttk.Button(btn_frame, text="Rename", command=lambda g=game: self.rename_game(g)).pack(side="left", padx=2)
+
     def play_game(self, game):
         game_main_file = os.path.join(GAMES_DIR, game['main_file'])
         if sys.platform == "win32":
@@ -324,23 +314,13 @@ class Application(ThemedTk):
         if not game_name:
             messagebox.showerror("Upload Failed", "Please enter a name for the game")
             return
-        if not game_dir or not os.path.isdir(game_dir):
-            messagebox.showerror("Upload Failed", "Please select a valid game directory")
-            return
-        if not game_main_file or not os.path.isfile(game_main_file):
-            messagebox.showerror("Upload Failed", "Please select a valid main game file")
-            return
-        if not game_icon or not os.path.isfile(game_icon):
-            messagebox.showerror("Upload Failed", "Please select a valid game icon")
+        if not game_dir or not game_main_file or not game_icon:
+            messagebox.showerror("Upload Failed", "Please select game directory, main file, and icon")
             return
 
         if upload_game(self.local_data['username'], game_name, game_dir, game_main_file, game_icon):
             messagebox.showinfo("Upload Successful", "Game uploaded successfully")
             self.show_games_tab()
-            self.game_name_var.set("")
-            self.game_dir_var.set("")
-            self.game_main_file_var.set("")
-            self.game_icon_var.set("")
         else:
             messagebox.showerror("Upload Failed", "Failed to upload game")
 
@@ -439,6 +419,9 @@ def rename_game(username, old_game_name, new_game_name):
     client.close()
     return response.get("status") == "success"
 
+if __name__ == "__main__":
+    app = Application()
+    app.mainloop()
 if __name__ == "__main__":
     app = Application()
     app.mainloop()
