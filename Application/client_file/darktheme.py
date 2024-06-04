@@ -347,24 +347,87 @@ class Application(ThemedTk):
         tk.Label(self.settings_tab, text="Settings Tab", bg=SECONDARY_COLOR, fg="white", font=("Arial", 16)).pack(pady=10)
 
 def get_games():
-    # Dummy function, replace with actual implementation
-    return []
+    client = connect_to_server()
+    request = {"action": "get_games"}
+    client.send(pickle.dumps(request))
+    response = client.recv(4096)
+    client.close()
+
+    if not response:
+        print("No data received from server")
+        return []
+
+    try:
+        games = pickle.loads(response)
+        if isinstance(games, list):
+            return games
+        else:
+            print("Invalid response format from server")
+            return []
+    except Exception as e:
+        print(f"Error decoding server response: {e}")
+        return []
 
 def get_playing_count(game_name):
-    # Dummy function, replace with actual implementation
-    return 0
+    client = connect_to_server()
+    request = {"action": "get_playing_count", "game_name": game_name}
+    client.send(pickle.dumps(request))
+    response = client.recv(4096)
+    client.close()
+
+    if not response:
+        print("No data received from server")
+        return 0
+
+    try:
+        playing_count = pickle.loads(response)
+        if isinstance(playing_count, int):
+            return playing_count
+        else:
+            print("Invalid response format from server")
+            return 0
+    except Exception as e:
+        print(f"Error decoding server response: {e}")
+        return 0
 
 def reupload_game(username, game_name, game_dir, game_main_file, game_icon):
-    # Dummy function, replace with actual implementation
-    return True
+    client = connect_to_server()
+
+    # Copy the entire game folder to the shared directory
+    dest_dir = os.path.join(GAMES_DIR, os.path.basename(game_dir))
+    shutil.copytree(game_dir, dest_dir, dirs_exist_ok=True)
+
+    # Only send the main file path relative to the shared directory
+    relative_main_file = os.path.relpath(game_main_file, GAMES_DIR)
+
+    # Send the reupload request to the server
+    request = {
+        "action": "reupload",
+        "username": username,
+        "game_name": game_name,
+        "game_main_file": relative_main_file,
+        "game_icon": game_icon
+    }
+    client.send(pickle.dumps(request))
+    response = pickle.loads(client.recv(4096))
+    client.close()
+    return response.get("status") == "success"
 
 def delete_game(username, game_name):
-    # Dummy function, replace with actual implementation
-    return True
+    client = connect_to_server()
+    request = {"action": "delete", "username": username, "game_name": game_name}
+    client.send(pickle.dumps(request))
+    response = pickle.loads(client.recv(4096))
+    client.close()
+    return response.get("status") == "success"
 
 def rename_game(username, old_game_name, new_game_name):
-    # Dummy function, replace with actual implementation
-    return True
+    client = connect_to_server()
+    request = {"action": "rename", "username": username, "old_game_name": old_game_name, "new_game_name": new_game_name}
+    client.send(pickle.dumps(request))
+    response = pickle.loads(client.recv(4096))
+    client.close()
+    return response.get("status") == "success"
 
 if __name__ == "__main__":
     app = Application()
