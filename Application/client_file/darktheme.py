@@ -64,26 +64,58 @@ def signup(username, password):
 def upload_game(username, game_name, game_dir, game_main_file, game_icon):
     client = connect_to_server()
 
-    # Copy the entire game folder to the shared directory
     dest_dir = os.path.join(GAMES_DIR, os.path.basename(game_dir))
     shutil.copytree(game_dir, dest_dir, dirs_exist_ok=True)
 
-    # Only send the main file path relative to the shared directory
     relative_main_file = os.path.relpath(game_main_file, GAMES_DIR)
 
-    # Send the upload request to the server
+    if game_icon.startswith(game_dir):
+        relative_icon = os.path.relpath(game_icon, game_dir)
+    else:
+        icon_name = os.path.basename(game_icon)
+        dest_icon_path = os.path.join(GAMES_DIR, icon_name)
+        shutil.copy2(game_icon, dest_icon_path)
+        relative_icon = icon_name
+
     request = {
         "action": "upload",
         "username": username,
         "game_name": game_name,
         "game_main_file": relative_main_file,
-        "game_icon": game_icon
+        "game_icon": relative_icon
     }
     client.send(pickle.dumps(request))
     response = pickle.loads(client.recv(4096))
     client.close()
     return response.get("status") == "success"
 
+def reupload_game(username, game_name, game_dir, game_main_file, game_icon):
+    client = connect_to_server()
+
+    dest_dir = os.path.join(GAMES_DIR, os.path.basename(game_dir))
+    shutil.copytree(game_dir, dest_dir, dirs_exist_ok=True)
+
+    relative_main_file = os.path.relpath(game_main_file, GAMES_DIR)
+
+    if game_icon.startswith(game_dir):
+        relative_icon = os.path.relpath(game_icon, game_dir)
+    else:
+        icon_name = os.path.basename(game_icon)
+        dest_icon_path = os.path.join(GAMES_DIR, icon_name)
+        shutil.copy2(game_icon, dest_icon_path)
+        relative_icon = icon_name
+
+    request = {
+        "action": "reupload",
+        "username": username,
+        "game_name": game_name,
+        "game_main_file": relative_main_file,
+        "game_icon": relative_icon
+    }
+    client.send(pickle.dumps(request))
+    response = pickle.loads(client.recv(4096))
+    client.close()
+    return response.get("status") == "success"
 # Reupload game to server
 def reupload_game(username, game_name, game_dir, game_main_file, game_icon):
     client = connect_to_server()
