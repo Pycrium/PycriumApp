@@ -19,6 +19,13 @@ GAMES_DIR = r"D:\Aayush Paikaray\Storage"
 
 SERVER_ADDR = ("192.168.1.4", 9998)
 
+# Halloween color scheme
+PRIMARY_COLOR = "#ff6600"    # Pumpkin Orange
+SECONDARY_COLOR = "#000000"  # Midnight Black
+ACCENT_COLOR = "#993399"     # Witchy Purple
+NEUTRAL_COLOR = "#666666"    # Haunted Gray
+BACKGROUND_COLOR = "#ffffff" # Spooky White
+
 def load_local_data():
     try:
         with open(os.path.join(LOCAL_DATA_DIR, "user.dat"), "rb") as f:
@@ -79,94 +86,6 @@ def upload_game(username, game_name, game_dir, game_main_file, game_icon):
     client.close()
     return response.get("status") == "success"
 
-def reupload_game(username, game_name, game_dir, game_main_file, game_icon):
-    client = connect_to_server()
-
-    dest_dir = os.path.join(GAMES_DIR, os.path.basename(game_dir))
-    shutil.copytree(game_dir, dest_dir, dirs_exist_ok=True)
-
-    relative_main_file = os.path.relpath(game_main_file, GAMES_DIR)
-
-    if game_icon.startswith(game_dir):
-        relative_icon = os.path.relpath(game_icon, game_dir)
-    else:
-        icon_name = os.path.basename(game_icon)
-        dest_icon_path = os.path.join(GAMES_DIR, icon_name)
-        shutil.copy2(game_icon, dest_icon_path)
-        relative_icon = icon_name
-
-    request = {
-        "action": "reupload",
-        "username": username,
-        "game_name": game_name,
-        "game_main_file": relative_main_file,
-        "game_icon": relative_icon
-    }
-    client.send(pickle.dumps(request))
-    response = pickle.loads(client.recv(4096))
-    client.close()
-    return response.get("status") == "success"
-
-def delete_game(username, game_name):
-    client = connect_to_server()
-    request = {"action": "delete", "username": username, "game_name": game_name}
-    client.send(pickle.dumps(request))
-    response = pickle.loads(client.recv(4096))
-    client.close()
-    return response.get("status") == "success"
-
-def rename_game(username, old_game_name, new_game_name):
-    client = connect_to_server()
-    request = {"action": "rename", "username": username, "old_game_name": old_game_name, "new_game_name": new_game_name}
-    client.send(pickle.dumps(request))
-    response = pickle.loads(client.recv(4096))
-    client.close()
-    return response.get("status") == "success"
-
-def get_games():
-    client = connect_to_server()
-    request = {"action": "get_games"}
-    client.send(pickle.dumps(request))
-    response = client.recv(4096)
-    client.close()
-
-    if not response:
-        print("No data received from server")
-        return []
-
-    try:
-        games = pickle.loads(response)
-        if isinstance(games, list):
-            return games
-        else:
-            print("Invalid response format from server")
-            return []
-    except Exception as e:
-        print(f"Error decoding server response: {e}")
-        return []
-
-def get_playing_count(game_name):
-    client = connect_to_server()
-    request = {"action": "get_playing_count", "game_name": game_name}
-    client.send(pickle.dumps(request))
-    response = client.recv(4096)
-    client.close()
-
-    if not response:
-        print("No data received from server")
-        return 0
-
-    try:
-        playing_count = pickle.loads(response)
-        if isinstance(playing_count, int):
-            return playing_count
-        else:
-            print("Invalid response format from server")
-            return 0
-    except Exception as e:
-        print(f"Error decoding server response: {e}")
-        return 0
-
 class Application(ThemedTk):
     def __init__(self):
         super().__init__(theme="equilux")
@@ -175,16 +94,16 @@ class Application(ThemedTk):
         self.local_data = load_local_data()
 
         style = ttk.Style(self)
-        style.configure("TLabel", foreground="white", background="#333333", font=("Arial", 14))
-        style.configure("TButton", foreground="white", background="#444444", font=("Arial", 12))
-        style.map("TButton", background=[('active', '#555555')])
-        style.configure("TFrame", background="#333333")
-        style.configure("TEntry", fieldbackground="#555555", foreground="white", font=("Arial", 12))
-        style.configure("TNotebook", background="#333333", tabmargins=2)
-        style.configure("TNotebook.Tab", background="#444444", foreground="white")
-        style.map("TNotebook.Tab", background=[('selected', '#555555')])
+        style.configure("TLabel", foreground="white", background=SECONDARY_COLOR, font=("Arial", 14))
+        style.configure("TButton", foreground="white", background=PRIMARY_COLOR, font=("Arial", 12))
+        style.map("TButton", background=[('active', ACCENT_COLOR)])
+        style.configure("TFrame", background=SECONDARY_COLOR)
+        style.configure("TEntry", fieldbackground=NEUTRAL_COLOR, foreground="white", font=("Arial", 12))
+        style.configure("TNotebook", background=SECONDARY_COLOR, tabmargins=2)
+        style.configure("TNotebook.Tab", background=PRIMARY_COLOR, foreground="white")
+        style.map("TNotebook.Tab", background=[('selected', ACCENT_COLOR)])
 
-        self.configure(bg="#333333")
+        self.configure(bg=SECONDARY_COLOR)
 
         if self.local_data:
             if verify_credentials(self.local_data["username"], self.local_data["password"]):
@@ -201,10 +120,10 @@ class Application(ThemedTk):
         self.username = tk.StringVar()
         self.password = tk.StringVar()
 
-        tk.Label(self, text="Username", bg="#333333", fg="white").pack(pady=10)
-        tk.Entry(self, textvariable=self.username, bg="#555555", fg="white").pack()
-        tk.Label(self, text="Password", bg="#333333", fg="white").pack(pady=10)
-        tk.Entry(self, textvariable=self.password, show="*", bg="#555555", fg="white").pack()
+        tk.Label(self, text="Username", bg=SECONDARY_COLOR, fg="white").pack(pady=10)
+        tk.Entry(self, textvariable=self.username, bg=NEUTRAL_COLOR, fg="white").pack()
+        tk.Label(self, text="Password", bg=SECONDARY_COLOR, fg="white").pack(pady=10)
+        tk.Entry(self, textvariable=self.password, show="*", bg=NEUTRAL_COLOR, fg="white").pack()
         ttk.Button(self, text="Login", command=self.login).pack(pady=10)
         ttk.Button(self, text="Sign Up", command=self.show_signup).pack()
 
@@ -216,21 +135,14 @@ class Application(ThemedTk):
         self.new_password = tk.StringVar()
         self.confirm_password = tk.StringVar()
 
-        tk.Label(self, text="Username", bg="#333333", fg="white").pack(pady=10)
-        tk.Entry(self, textvariable=self.new_username, bg="#555555", fg="white").pack()
-        tk.Label(self, text="Password", bg="#333333", fg="white").pack(pady=10)
-        tk.Entry(self, textvariable=self.new_password, show="*", bg="#555555", fg="white").pack()
-        tk.Label(self, text="Confirm Password", bg="#333333", fg="white").pack(pady=10)
-        tk.Entry(self, textvariable=self.confirm_password, show="*", bg="#555555", fg="white").pack()
+        tk.Label(self, text="Username", bg=SECONDARY_COLOR, fg="white").pack(pady=10)
+        tk.Entry(self, textvariable=self.new_username, bg=NEUTRAL_COLOR, fg="white").pack()
+        tk.Label(self, text="Password", bg=SECONDARY_COLOR, fg="white").pack(pady=10)
+        tk.Entry(self, textvariable=self.new_password, show="*", bg=NEUTRAL_COLOR, fg="white").pack()
+        tk.Label(self, text="Confirm Password", bg=SECONDARY_COLOR, fg="white").pack(pady=10)
+        tk.Entry(self, textvariable=self.confirm_password, show="*", bg=NEUTRAL_COLOR, fg="white").pack()
         ttk.Button(self, text="Sign Up", command=self.signup).pack(pady=10)
         ttk.Button(self, text="Login", command=self.show_login).pack()
-
-    def validate_username(self, event):
-        username = self.new_username.get()
-        if re.match(r"^[a-zA-Z0-9_]{3,20}$", username):
-            self.username_error_label.config(text="")
-        else:
-            self.username_error_label.config(text="Invalid username")
 
     def login(self):
         username = self.username.get()
@@ -282,7 +194,7 @@ class Application(ThemedTk):
 
         games = get_games()
         if not games:
-            tk.Label(self.games_tab, text="No games available", bg="#333333", fg="white", font=("Arial", 14)).pack()
+            tk.Label(self.games_tab, text="No games available", bg=SECONDARY_COLOR, fg="white", font=("Arial", 14)).pack()
             return
 
         for game in games:
@@ -293,15 +205,15 @@ class Application(ThemedTk):
             img = Image.open(game_icon_path)
             img = img.resize((64, 64), Image.ANTIALIAS)
             icon = ImageTk.PhotoImage(img)
-            tk.Label(frame, image=icon, bg="#333333").pack(side="left", padx=5)
+            tk.Label(frame, image=icon, bg=SECONDARY_COLOR).pack(side="left", padx=5)
             frame.image = icon
 
             game_info = ttk.Frame(frame)
             game_info.pack(side="left", fill="both", expand=True)
 
-            ttk.Label(game_info, text=game['name'], font=("Helvetica", 14, "bold"), background="#333333", foreground="white").pack(anchor="w")
-            ttk.Label(game_info, text=f"Uploaded by: {game['username']}", background="#333333", foreground="white").pack(anchor="w")
-            ttk.Label(game_info, text=f"Playing: {get_playing_count(game['name'])}", background="#333333", foreground="white").pack(anchor="w")
+            ttk.Label(game_info, text=game['name'], font=("Helvetica", 14, "bold"), background=SECONDARY_COLOR, foreground="white").pack(anchor="w")
+            ttk.Label(game_info, text=f"Uploaded by: {game['username']}", background=SECONDARY_COLOR, foreground="white").pack(anchor="w")
+            ttk.Label(game_info, text=f"Playing: {get_playing_count(game['name'])}", background=SECONDARY_COLOR, foreground="white").pack(anchor="w")
 
             btn_frame = ttk.Frame(frame)
             btn_frame.pack(side="right", padx=5)
@@ -358,23 +270,23 @@ class Application(ThemedTk):
         for widget in self.create_tab.winfo_children():
             widget.destroy()
 
-        tk.Label(self.create_tab, text="Upload New Game", font=("Arial", 16), bg="#333333", fg="white").pack(pady=10)
+        tk.Label(self.create_tab, text="Upload New Game", font=("Arial", 16), bg=SECONDARY_COLOR, fg="white").pack(pady=10)
 
         self.game_name_var = tk.StringVar()
-        tk.Label(self.create_tab, text="Game Name:", bg="#333333", fg="white").pack()
-        tk.Entry(self.create_tab, textvariable=self.game_name_var, bg="#555555", fg="white").pack(pady=5)
+        tk.Label(self.create_tab, text="Game Name:", bg=SECONDARY_COLOR, fg="white").pack()
+        tk.Entry(self.create_tab, textvariable=self.game_name_var, bg=NEUTRAL_COLOR, fg="white").pack(pady=5)
 
         self.game_dir_var = tk.StringVar()
         ttk.Button(self.create_tab, text="Select Game Directory", command=self.select_game_directory).pack(pady=5)
-        tk.Label(self.create_tab, textvariable=self.game_dir_var, bg="#555555", fg="white").pack()
+        tk.Label(self.create_tab, textvariable=self.game_dir_var, bg=NEUTRAL_COLOR, fg="white").pack()
 
         self.game_main_file_var = tk.StringVar()
         ttk.Button(self.create_tab, text="Select Main Game File", command=self.select_main_game_file).pack(pady=5)
-        tk.Label(self.create_tab, textvariable=self.game_main_file_var, bg="#555555", fg="white").pack()
+        tk.Label(self.create_tab, textvariable=self.game_main_file_var, bg=NEUTRAL_COLOR, fg="white").pack()
 
         self.game_icon_var = tk.StringVar()
         ttk.Button(self.create_tab, text="Select Game Icon", command=self.select_game_icon).pack(pady=5)
-        tk.Label(self.create_tab, textvariable=self.game_icon_var, bg="#555555", fg="white").pack()
+        tk.Label(self.create_tab, textvariable=self.game_icon_var, bg=NEUTRAL_COLOR, fg="white").pack()
 
         ttk.Button(self.create_tab, text="Upload", command=self.upload_game).pack(pady=10)
 
@@ -398,12 +310,27 @@ class Application(ThemedTk):
         game_dir = self.game_dir_var.get()
         game_main_file = self.game_main_file_var.get()
         game_icon = self.game_icon_var.get()
-        if not (game_name and game_dir and game_main_file):
-            messagebox.showerror("Upload Failed", "Please fill in all required fields")
+
+        if not game_name:
+            messagebox.showerror("Upload Failed", "Please enter a name for the game")
             return
+        if not game_dir or not os.path.isdir(game_dir):
+            messagebox.showerror("Upload Failed", "Please select a valid game directory")
+            return
+        if not game_main_file or not os.path.isfile(game_main_file):
+            messagebox.showerror("Upload Failed", "Please select a valid main game file")
+            return
+        if not game_icon or not os.path.isfile(game_icon):
+            messagebox.showerror("Upload Failed", "Please select a valid game icon")
+            return
+
         if upload_game(self.local_data['username'], game_name, game_dir, game_main_file, game_icon):
             messagebox.showinfo("Upload Successful", "Game uploaded successfully")
             self.show_games_tab()
+            self.game_name_var.set("")
+            self.game_dir_var.set("")
+            self.game_main_file_var.set("")
+            self.game_icon_var.set("")
         else:
             messagebox.showerror("Upload Failed", "Failed to upload game")
 
@@ -411,13 +338,33 @@ class Application(ThemedTk):
         for widget in self.chat_tab.winfo_children():
             widget.destroy()
 
-        ttk.Label(self.chat_tab, text="Chat coming soon", font=("Arial", 16), background="#333333", foreground="white").pack(pady=50)
+        tk.Label(self.chat_tab, text="Chat Tab", bg=SECONDARY_COLOR, fg="white", font=("Arial", 16)).pack(pady=10)
 
     def show_settings_tab(self):
         for widget in self.settings_tab.winfo_children():
             widget.destroy()
 
-        ttk.Label(self.settings_tab, text="Settings coming soon", font=("Arial", 16), background="#333333", foreground="white").pack(pady=50)
+        tk.Label(self.settings_tab, text="Settings Tab", bg=SECONDARY_COLOR, fg="white", font=("Arial", 16)).pack(pady=10)
+
+def get_games():
+    # Dummy function, replace with actual implementation
+    return []
+
+def get_playing_count(game_name):
+    # Dummy function, replace with actual implementation
+    return 0
+
+def reupload_game(username, game_name, game_dir, game_main_file, game_icon):
+    # Dummy function, replace with actual implementation
+    return True
+
+def delete_game(username, game_name):
+    # Dummy function, replace with actual implementation
+    return True
+
+def rename_game(username, old_game_name, new_game_name):
+    # Dummy function, replace with actual implementation
+    return True
 
 if __name__ == "__main__":
     app = Application()
