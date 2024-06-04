@@ -189,15 +189,26 @@ class Application(ThemedTk):
         self.show_settings_tab()
 
     def show_games_tab(self):
-        for widget in self.games_tab.winfo_children():
-            widget.destroy()
+    for widget in self.games_tab.winfo_children():
+        widget.destroy()
 
-        games = get_games()
-        if not games:
-            tk.Label(self.games_tab, text="No games available", bg=SECONDARY_COLOR, fg="white", font=("Arial", 14)).pack()
-            return
+    search_frame = ttk.Frame(self.games_tab)
+    search_frame.pack(fill="x", pady=5)
 
-        for game in games:
+    search_entry = ttk.Entry(search_frame)
+    search_entry.pack(side="left", padx=5)
+
+    search_button = ttk.Button(search_frame, text="Search", command=lambda: self.search_games(search_entry.get()))
+    search_button.pack(side="left", padx=5)
+
+    games = get_games()
+    if not games:
+        tk.Label(self.games_tab, text="No games available", bg=SECONDARY_COLOR, fg="white", font=("Arial", 14)).pack()
+        return
+
+    for game in games:
+        # Check if the search query matches the game name or username
+        if search_entry.get().lower() in game['name'].lower() or search_entry.get().lower() in game['username'].lower():
             frame = ttk.Frame(self.games_tab)
             frame.pack(fill="x", pady=5)
 
@@ -223,7 +234,6 @@ class Application(ThemedTk):
                 ttk.Button(btn_frame, text="Reupload", command=lambda g=game: self.reupload_game(g)).pack(side="left", padx=2)
                 ttk.Button(btn_frame, text="Delete", command=lambda g=game: self.delete_game(g)).pack(side="left", padx=2)
                 ttk.Button(btn_frame, text="Rename", command=lambda g=game: self.rename_game(g)).pack(side="left", padx=2)
-
     def play_game(self, game):
         game_main_file = os.path.join(GAMES_DIR, game['main_file'])
         if sys.platform == "win32":
