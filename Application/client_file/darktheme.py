@@ -3,14 +3,12 @@ import threading
 import pickle
 import os
 import tkinter as tk
-from tkinter import simpledialog
-from tkinter import messagebox, filedialog, ttk
-from tkinterdnd2 import DND_FILES, TkinterDnD
+from tkinter import simpledialog, messagebox, filedialog, ttk
 import re
 import subprocess
 import sys
 import shutil
-from PIL import Image, ImageTk, ImageDraw, ImageOps
+from PIL import Image, ImageTk
 from ttkthemes import ThemedTk
 
 # Directory to store user data locally
@@ -176,16 +174,16 @@ class Application(ThemedTk):
     def __init__(self):
         super().__init__(theme="equilux")
         self.title("Client Application")
-        self.geometry("600x400")
+        self.state("zoomed")  # Maximize window
         self.local_data = load_local_data()
 
         # Apply custom styles
         style = ttk.Style(self)
-        style.configure("TLabel", foreground="white", background="#333333")
-        style.configure("TButton", foreground="white", background="#444444")
+        style.configure("TLabel", foreground="white", background="#333333", font=("Arial", 14))
+        style.configure("TButton", foreground="white", background="#444444", font=("Arial", 12))
         style.map("TButton", background=[('active', '#555555')])
         style.configure("TFrame", background="#333333")
-        style.configure("TEntry", fieldbackground="#555555", foreground="white")
+        style.configure("TEntry", fieldbackground="#555555", foreground="white", font=("Arial", 12))
         style.configure("TNotebook", background="#333333", tabmargins=2)
         style.configure("TNotebook.Tab", background="#444444", foreground="white")
         style.map("TNotebook.Tab", background=[('selected', '#555555')])
@@ -201,18 +199,18 @@ class Application(ThemedTk):
             self.show_login()
 
     def show_login(self):
-        forwidget in self.winfo_children():
+        for widget in self.winfo_children():
             widget.destroy()
 
         self.username = tk.StringVar()
         self.password = tk.StringVar()
 
-        tk.Label(self, text="Username", bg="#333333", fg="white", font=("Arial", 12)).pack(pady=10)
-        tk.Entry(self, textvariable=self.username, bg="#555555", fg="white", insertbackground="white", font=("Arial", 12)).pack()
-        tk.Label(self, text="Password", bg="#333333", fg="white", font=("Arial", 12)).pack(pady=10)
-        tk.Entry(self, textvariable=self.password, show="*", bg="#555555", fg="white", insertbackground="white", font=("Arial", 12)).pack()
-        ttk.Button(self, text="Login", command=self.login, style="TButton").pack(pady=10)
-        ttk.Button(self, text="Sign Up", command=self.show_signup, style="TButton").pack()
+        tk.Label(self, text="Username", bg="#333333", fg="white").pack(pady=10)
+        tk.Entry(self, textvariable=self.username, bg="#555555", fg="white").pack()
+        tk.Label(self, text="Password", bg="#333333", fg="white").pack(pady=10)
+        tk.Entry(self, textvariable=self.password, show="*", bg="#555555", fg="white").pack()
+        ttk.Button(self, text="Login", command=self.login).pack(pady=10)
+        ttk.Button(self, text="Sign Up", command=self.show_signup).pack()
 
     def show_signup(self):
         for widget in self.winfo_children():
@@ -222,19 +220,14 @@ class Application(ThemedTk):
         self.new_password = tk.StringVar()
         self.confirm_password = tk.StringVar()
 
-        tk.Label(self, text="Username", bg="#333333", fg="white", font=("Arial", 12)).pack(pady=10)
-        self.new_username_entry = tk.Entry(self, textvariable=self.new_username, bg="#555555", fg="white", insertbackground="white", font=("Arial", 12))
-        self.new_username_entry.pack()
-        self.new_username_entry.bind("<KeyRelease>", self.validate_username)
-        self.username_error_label = tk.Label(self, text="", fg="red", bg="#333333")
-        self.username_error_label.pack()
-
-        tk.Label(self, text="Password", bg="#333333", fg="white", font=("Arial", 12)).pack(pady=10)
-        tk.Entry(self, textvariable=self.new_password, show="*", bg="#555555", fg="white", insertbackground="white", font=("Arial", 12)).pack()
-        tk.Label(self, text="Confirm Password", bg="#333333", fg="white", font=("Arial", 12)).pack(pady=10)
-        tk.Entry(self, textvariable=self.confirm_password, show="*", bg="#555555", fg="white", insertbackground="white", font=("Arial", 12)).pack()
-        ttk.Button(self, text="Sign Up", command=self.signup, style="TButton").pack(pady=10)
-        ttk.Button(self, text="Login", command=self.show_login, style="TButton").pack()
+        tk.Label(self, text="Username", bg="#333333", fg="white").pack(pady=10)
+        tk.Entry(self, textvariable=self.new_username, bg="#555555", fg="white").pack()
+        tk.Label(self, text="Password", bg="#333333", fg="white").pack(pady=10)
+        tk.Entry(self, textvariable=self.new_password, show="*", bg="#555555", fg="white").pack()
+        tk.Label(self, text="Confirm Password", bg="#333333", fg="white").pack(pady=10)
+        tk.Entry(self, textvariable=self.confirm_password, show="*", bg="#555555", fg="white").pack()
+        ttk.Button(self, text="Sign Up", command=self.signup).pack(pady=10)
+        ttk.Button(self, text="Login", command=self.show_login).pack()
 
     def validate_username(self, event):
         username = self.new_username.get()
@@ -357,7 +350,7 @@ class Application(ThemedTk):
 
     def rename_game(self, game):
         old_game_name = game['name']
-        new_game_name = simpledialog.askstring("Rename Game", f"Enter new name for {old_game_name}")
+        new_game_name = simpledialog.askstring("Rename Game", f"New name for {old_game_name}:")
         if new_game_name:
             if rename_game(self.local_data['username'], old_game_name, new_game_name):
                 messagebox.showinfo("Rename Successful", "Game renamed successfully")
@@ -369,56 +362,40 @@ class Application(ThemedTk):
         for widget in self.create_tab.winfo_children():
             widget.destroy()
 
-        ttk.Label(self.create_tab, text="Create New Game", font=("Helvetica", 16, "bold"), background="#333333", foreground="white").pack(pady=10)
+        tk.Label(self.create_tab, text="Create New Game", bg="#333333", fg="white", font=("Arial", 16, "bold")).pack(pady=10)
 
-        self.game_name_var = tk.StringVar()
-        self.game_dir_var = tk.StringVar()
-        self.game_main_file_var = tk.StringVar()
-        self.game_icon_var = tk.StringVar()
+        self.game_name_entry = ttk.Entry(self.create_tab)
+        self.game_name_entry.pack(pady=5)
 
-        ttk.Label(self.create_tab, text="Game Name:", background="#333333", foreground="white").pack()
-        ttk.Entry(self.create_tab, textvariable=self.game_name_var, background="#555555", foreground="white").pack()
+        ttk.Button(self.create_tab, text="Select Directory", command=self.select_game_directory).pack(pady=5)
+        ttk.Button(self.create_tab, text="Select Main File", command=self.select_main_file).pack(pady=5)
+        ttk.Button(self.create_tab, text="Select Icon", command=self.select_game_icon).pack(pady=5)
+        ttk.Button(self.create_tab, text="Upload Game", command=self.upload_new_game).pack(pady=10)
 
-        ttk.Label(self.create_tab, text="Game Directory:", background="#333333", foreground="white").pack()
-        ttk.Entry(self.create_tab, textvariable=self.game_dir_var, background="#555555", foreground="white").pack()
-        ttk.Button(self.create_tab, text="Browse", command=self.browse_game_dir, style="TButton").pack()
-
-        ttk.Label(self.create_tab, text="Main Game File:", background="#333333", foreground="white").pack()
-        ttk.Entry(self.create_tab, textvariable=self.game_main_file_var, background="#555555", foreground="white").pack()
-        ttk.Button(self.create_tab, text="Browse", command=self.browse_main_file, style="TButton").pack()
-
-        ttk.Label(self.create_tab, text="Game Icon:", background="#333333", foreground="white").pack()
-        ttk.Entry(self.create_tab, textvariable=self.game_icon_var, background="#555555", foreground="white").pack()
-        ttk.Button(self.create_tab, text="Browse", command=self.browse_game_icon, style="TButton").pack()
-
-        ttk.Button(self.create_tab, text="Upload", command=self.upload_new_game, style="TButton").pack(pady=10)
-
-    def browse_game_dir(self):
+    def select_game_directory(self):
         game_dir = filedialog.askdirectory(title="Select Game Directory")
         if game_dir:
-            self.game_dir_var.set(game_dir)
+            self.game_dir = game_dir
 
-    def browse_main_file(self):
-        game_main_file = filedialog.askopenfilename(title="Select Main Game File", initialdir=self.game_dir_var.get())
+    def select_main_file(self):
+        game_main_file = filedialog.askopenfilename(title="Select Main Game File", initialdir=self.game_dir)
         if game_main_file:
-            self.game_main_file_var.set(game_main_file)
+            self.game_main_file = game_main_file
 
-    def browse_game_icon(self):
-        game_icon = filedialog.askopenfilename(title="Select Game Icon", initialdir=self.game_dir_var.get())
+    def select_game_icon(self):
+        game_icon = filedialog.askopenfilename(title="Select Game Icon", initialdir=self.game_dir)
         if game_icon:
-            self.game_icon_var.set(game_icon)
+            self.game_icon = game_icon
 
     def upload_new_game(self):
-        game_name = self.game_name_var.get().strip()
-        game_dir = self.game_dir_var.get().strip()
-        game_main_file = self.game_main_file_var.get().strip()
-        game_icon = self.game_icon_var.get().strip()
-
-        if not (game_name and game_dir and game_main_file and game_icon):
-            messagebox.showerror("Upload Failed", "All fields are required")
+        game_name = self.game_name_entry.get().strip()
+        if not game_name:
+            messagebox.showerror("Error", "Please enter a name for the game")
             return
-
-        if upload_game(self.local_data['username'], game_name, game_dir, game_main_file, game_icon):
+        if not hasattr(self, 'game_dir') or not hasattr(self, 'game_main_file') or not hasattr(self, 'game_icon'):
+            messagebox.showerror("Error", "Please select game directory, main file, and icon")
+            return
+        if upload_game(self.local_data['username'], game_name, self.game_dir, self.game_main_file, self.game_icon):
             messagebox.showinfo("Upload Successful", "Game uploaded successfully")
             self.show_games_tab()
         else:
@@ -428,13 +405,21 @@ class Application(ThemedTk):
         for widget in self.chat_tab.winfo_children():
             widget.destroy()
 
-        tk.Label(self.chat_tab, text="Chat Tab", bg="#333333", fg="white").pack(pady=10)
+        tk.Label(self.chat_tab, text="Chat", bg="#333333", fg="white", font=("Arial", 16, "bold")).pack(pady=10)
+        tk.Text(self.chat_tab, bg="#555555", fg="white", height=10, width=50).pack(pady=5)
 
     def show_settings_tab(self):
         for widget in self.settings_tab.winfo_children():
             widget.destroy()
 
-        tk.Label(self.settings_tab, text="Settings Tab", bg="#333333", fg="white").pack(pady=10)
+        tk.Label(self.settings_tab, text="Settings", bg="#333333", fg="white", font=("Arial", 16, "bold")).pack(pady=10)
+        ttk.Button(self.settings_tab, text="Logout", command=self.logout).pack(pady=10)
 
-app = Application()
-app.mainloop()
+    def logout(self):
+        os.remove(os.path.join(LOCAL_DATA_DIR, "user.dat"))
+        self.destroy()
+        Application()
+
+if __name__ == "__main__":
+    app = Application()
+    app.mainloop()
