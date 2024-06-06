@@ -1,15 +1,13 @@
 import socket
-import threading
 import pickle
 import os
 import tkinter as tk
-from tkinter import simpledialog
-from tkinter import messagebox, filedialog, ttk
-from tkinterdnd2 import DND_FILES, TkinterDnD
+from tkinter import simpledialog, messagebox, filedialog, ttk
 import re
 import subprocess
 import sys
 import shutil
+from PIL import Image, ImageTk
 
 # Directory to store user data locally
 LOCAL_DATA_DIR = "local_data"
@@ -18,6 +16,11 @@ if not os.path.exists(LOCAL_DATA_DIR):
 
 # Directory where games are stored on the shared server
 GAMES_DIR = r"D:\Aayush Paikaray\Storage"
+
+# Directory to store game icons
+ICONS_DIR = os.path.join(GAMES_DIR, "Icons")
+if not os.path.exists(ICONS_DIR):
+    os.makedirs(ICONS_DIR)
 
 # Server address
 SERVER_ADDR = ("192.168.1.4", 9998)
@@ -58,6 +61,16 @@ def signup(username, password):
     client.close()
     return response.get("status") == "success"
 
+# Copy the icon to the storage/icons directory
+def copy_icon_to_storage(icon_path):
+    if not os.path.exists(icon_path):
+        raise FileNotFoundError(f"Icon file not found: {icon_path}")
+    
+    icon_name = os.path.basename(icon_path)
+    dest_icon_path = os.path.join(ICONS_DIR, icon_name)
+    shutil.copyfile(icon_path, dest_icon_path)
+    return dest_icon_path
+
 # Upload game to server
 def upload_game(username, game_name, game_dir, game_main_file, game_icon):
     client = connect_to_server()
@@ -69,13 +82,16 @@ def upload_game(username, game_name, game_dir, game_main_file, game_icon):
     # Only send the main file path relative to the shared directory
     relative_main_file = os.path.relpath(game_main_file, GAMES_DIR)
 
+    # Copy the icon to the storage/icons directory
+    dest_icon_path = copy_icon_to_storage(game_icon)
+
     # Send the upload request to the server
     request = {
         "action": "upload",
         "username": username,
         "game_name": game_name,
         "game_main_file": relative_main_file,
-        "game_icon": game_icon
+        "game_icon": os.path.relpath(dest_icon_path, GAMES_DIR)
     }
     client.send(pickle.dumps(request))
     response = pickle.loads(client.recv(4096))
@@ -93,13 +109,16 @@ def reupload_game(username, game_name, game_dir, game_main_file, game_icon):
     # Only send the main file path relative to the shared directory
     relative_main_file = os.path.relpath(game_main_file, GAMES_DIR)
 
+    # Copy the icon to the storage/icons directory
+    dest_icon_path = copy_icon_to_storage(game_icon)
+
     # Send the reupload request to the server
     request = {
         "action": "reupload",
         "username": username,
         "game_name": game_name,
         "game_main_file": relative_main_file,
-        "game_icon": game_icon
+        "game_icon": os.path.relpath(dest_icon_path, GAMES_DIR)
     }
     client.send(pickle.dumps(request))
     response = pickle.loads(client.recv(4096))
@@ -171,11 +190,12 @@ def get_playing_count(game_name):
         return 0
 
 # GUI Application
-class Application(TkinterDnD.Tk):
+class Application(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Client Application")
-        self.geometry("600x400")
+        self.configure(bg="#2b2b2b")  # Set background color to dark gray
+        self.attributes("-fullscreen", True)  # Maximize window
         self.local_data = load_local_data()
         if self.local_data:
             if verify_credentials(self.local_data["username"], self.local_data["password"]):
@@ -192,12 +212,12 @@ class Application(TkinterDnD.Tk):
         self.username = tk.StringVar()
         self.password = tk.StringVar()
 
-        tk.Label(self, text="Username").pack()
-        tk.Entry(self, textvariable=self.username).pack()
-        tk.Label(self, text="Password").pack()
-        tk.Entry(self, textvariable=self.password, show="*").pack()
-        tk.Button(self, text="Login", command=self.login).pack()
-        tk.Button(self, text="Sign Up", command=self.show_signup).pack()
+        tk.Label(self, text="Username", bg="#2b2b2b", fg="white").pack()
+        tk.Entry(self, textvariable=self.username, bg="#444444", fg="white").pack()
+        tk.Label(self, text="Password", bg="#2b2b2b", fg="white").pack()
+        tk.Entry(self, textvariable=self.password, show="*", bg="#444444", fg="white").pack()
+        tk.Button(self, text="Login", command=self.login, bg="#444444", fg="white").pack()
+        tk.Button(self, text="Sign Up", command=self.show_signup, bg="#444444", fg="white").pack()
 
     def show_signup(self):
         for widget in self.winfo_children():
@@ -207,19 +227,19 @@ class Application(TkinterDnD.Tk):
         self.new_password = tk.StringVar()
         self.confirm_password = tk.StringVar()
 
-        tk.Label(self, text="Username").pack()
-        self.new_username_entry = tk.Entry(self, textvariable=self.new_username)
+        tk.Label(self, text="Username", bg="#2b2b2b", fg="white").pack()
+        self.new_username_entry = tk.Entry(self, textvariable=self.new_username, bg="#444444", fg="white")
         self.new_username_entry.pack()
         self.new_username_entry.bind("<KeyRelease>", self.validate_username)
-        self.username_error_label = tk.Label(self, text="", fg="red")
+        self.username_error_label = tk.Label(self, text="", fg="red", bg="#2b2b2b")
         self.username_error_label.pack()
 
-        tk.Label(self, text="Password").pack()
-        tk.Entry(self, textvariable=self.new_password, show="*").pack()
-        tk.Label(self, text="Confirm Password").pack()
-        tk.Entry(self, textvariable=self.confirm_password, show="*").pack()
-        tk.Button(self, text="Sign Up", command=self.signup).pack()
-        tk.Button(self, text="Login", command=self.show_login).pack()
+        tk.Label(self, text="Password", bg="#2b2b2b", fg="white").pack()
+        tk.Entry(self, textvariable=self.new_password, show="*", bg="#444444", fg="white").pack()
+        tk.Label(self, text="Confirm Password", bg="#2b2b2b", fg="white").pack()
+        tk.Entry(self, textvariable=self.confirm_password, show="*", bg="#444444", fg="white").pack()
+        tk.Button(self, text="Sign Up", command=self.signup, bg="#444444", fg="white").pack()
+        tk.Button(self, text="Login", command=self.show_login, bg="#444444", fg="white").pack()
 
     def validate_username(self, event):
         username = self.new_username.get()
@@ -276,80 +296,83 @@ class Application(TkinterDnD.Tk):
 
         games = get_games()
         num_games = len(games)
-        num_columns = min(7, max(1, int(self.winfo_width() / 200)))  # Adjust based on window width
+        max_columns = 7  # Maximum number of games per row
+        num_columns = min(max_columns, max(1, int(self.winfo_width() / 200)))  # Adjust based on window width
         num_rows = (num_games + num_columns - 1) // num_columns
 
+        canvas = tk.Canvas(self.games_tab)
+        scrollbar = tk.Scrollbar(self.games_tab, orient="vertical", command=canvas.yview)
+        scrollbar.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        frame = tk.Frame(canvas, bg="#2b2b2b")  # Set background color to dark gray
+        canvas.create_window((0, 0), window=frame, anchor="nw")
+        frame.bind("<Configure>", lambda event, canvas=canvas: canvas.configure(scrollregion=canvas.bbox("all")))
+
         for i, game in enumerate(games):
-            game_frame = tk.Frame(self.games_tab, bd=2, relief="groove", width=200, height=200, bg="lightgray")
+            game_frame = tk.Frame(frame, bd=2, relief="groove", bg="#444444", width=200, height=280)  # Set background color to dark gray
             game_frame.pack_propagate(False)  # Prevent frame from shrinking to fit its content
-            row_num = i // num_columns
-            col_num = i % num_columns
-            game_frame.grid(row=row_num, column=col_num, padx=5, pady=5, sticky="nsew")
 
             game_name = game.get("game_name")
             author = game.get("username")
             game_main_file = game.get("main_file")
-
             playing_count = get_playing_count(game_name)
 
-            # Display game icon
-            icon_path = game.get("icon")
-            if icon_path:
-                icon_image = tk.PhotoImage(file=icon_path).subsample(3)  # Resize icon
-                icon_label = tk.Label(game_frame, image=icon_image)
-                icon_label.image = icon_image
-                icon_label.pack(pady=(0, 5))
+            icon_path = os.path.join(GAMES_DIR, game.get("icon", ""))
+            if icon_path and os.path.exists(icon_path):
+                try:
+                    img = Image.open(icon_path)
+                    img = img.resize((180, 180))  # Adjust thumbnail size
+                    thumbnail = ImageTk.PhotoImage(img)
+                    thumbnail_label = tk.Label(game_frame, image=thumbnail, bd=0)
+                    thumbnail_label.image = thumbnail
+                    thumbnail_label.pack(pady=(5, 10))
+                except Exception as e:
+                    print(f"Error loading image {icon_path}: {e}")
+            else:
+                print("Icon file not found")  # Debug print
 
-            # Display game name
-            name_label = tk.Label(game_frame, text=f"{game_name}\nby {author}", wraplength=180)
+            # Wrap text within a certain width
+            name_label = tk.Label(game_frame, text=game_name, font=("Helvetica", 12, "bold"), wraplength=180, bg="#444444", fg="white")
             name_label.pack()
 
-            # Display currently playing count
-            count_label = tk.Label(game_frame, text=f"Currently Playing: {playing_count}")
+            author_label = tk.Label(game_frame, text=f"by {author}", font=("Helvetica", 10), bg="#444444", fg="white")
+            author_label.pack()
+
+            count_label = tk.Label(game_frame, text=f"Players: {playing_count}", font=("Helvetica", 10), bg="#444444", fg="white")
             count_label.pack()
 
-            # Play game function
-            def play_game(game_main_file):
-                game_main_file_path = os.path.join(GAMES_DIR, game_main_file)
-                game_dir = os.path.dirname(game_main_file_path)  # Get the directory of the game main file
+            thumbnail_label.bind("<Button-1>", lambda event, game_main_file=game_main_file: self.play_game(game_main_file))
 
-                # Notify the server that the game is starting
-                self.update_playing_count(game_main_file, 1)
-
-                # Change the working directory to the game directory
-                os.chdir(game_dir)
-
-                python_executable = sys.executable  # Get the path to the Python executable
-                subprocess.Popen([python_executable, game_main_file_path])
-
-                # Notify the server that the game has stopped after 5 seconds
-                self.after(5000, self.update_playing_count, game_main_file, -1)
-
-            # Bind play game function to icon click event
-            icon_label.bind("<Button-1>", lambda event, game_main_file=game_main_file: play_game(game_main_file))
+            row_num = i // num_columns
+            col_num = i % num_columns
+            game_frame.grid(row=row_num, column=col_num, padx=10, pady=10, sticky="nsew")
 
         for i in range(num_rows):
-            self.games_tab.grid_rowconfigure(i, weight=1)  # Allow rows to expand
+            frame.grid_rowconfigure(i, weight=1)  # Allow rows to expand
         for j in range(num_columns):
-            self.games_tab.grid_columnconfigure(j, weight=1)  # Allow columns to expand
+            frame.grid_columnconfigure(j, weight=1)  # Allow columns to expand
+
+        # Enable mouse wheel scrolling
+        def _on_mouse_wheel(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mouse_wheel)
+
+        self.games_tab.update_idletasks()  # Update the tab to ensure proper rendering
+
 
 
     def play_game(self, game_main_file):
         game_main_file_path = os.path.join(GAMES_DIR, game_main_file)
-        game_dir = os.path.dirname(game_main_file_path)  # Get the directory of the game main file
+        game_dir = os.path.dirname(game_main_file_path) 
 
-        # Notify the server that the game is starting
         self.update_playing_count(game_main_file, 1)
-
-        # Change the working directory to the game directory
         os.chdir(game_dir)
-
-        python_executable = sys.executable  # Get the path to the Python executable
+        python_executable = sys.executable 
         subprocess.Popen([python_executable, game_main_file_path])
 
-        # Notify the server that the game has stopped after 5 seconds
         self.after(5000, self.update_playing_count, game_main_file, -1)
-
 
     def update_playing_count(self, game_name, count_change):
         client = connect_to_server()
@@ -357,12 +380,11 @@ class Application(TkinterDnD.Tk):
         client.send(pickle.dumps(request))
         client.close()
 
-
     def show_create(self):
         for widget in self.create_tab.winfo_children():
             widget.destroy()
 
-        tk.Button(self.create_tab, text="Upload Game", command=self.upload_game_window).pack(pady=10)
+        tk.Button(self.create_tab, text="Upload Game", command=self.upload_game_window, bg="#444444", fg="white").pack(pady=10)
 
         games = get_games()
         for game in games:
@@ -372,10 +394,10 @@ class Application(TkinterDnD.Tk):
 
                 game_name = game.get("game_name")
 
-                tk.Label(game_frame, text=game_name).pack(side="left")
-                tk.Button(game_frame, text="Reupload", command=lambda g=game_name: self.reupload_game_window(g)).pack(side="left")
-                tk.Button(game_frame, text="Delete", command=lambda g=game_name: self.delete_game(g)).pack(side="left")
-                tk.Button(game_frame, text="Rename", command=lambda g=game_name: self.rename_game_window(g)).pack(side="left")
+                tk.Label(game_frame, text=game_name, bg="#2b2b2b", fg="white").pack(side="left")
+                tk.Button(game_frame, text="Reupload", command=lambda g=game_name: self.reupload_game_window(g), bg="#444444", fg="white").pack(side="left")
+                tk.Button(game_frame, text="Delete", command=lambda g=game_name: self.delete_game(g), bg="#444444", fg="white").pack(side="left")
+                tk.Button(game_frame, text="Rename", command=lambda g=game_name: self.rename_game_window(g), bg="#444444", fg="white").pack(side="left")
 
     def reupload_game_window(self, game_name):
         game_dir = filedialog.askdirectory(title="Select Game Directory")
@@ -422,3 +444,4 @@ class Application(TkinterDnD.Tk):
 if __name__ == "__main__":
     app = Application()
     app.mainloop()
+
